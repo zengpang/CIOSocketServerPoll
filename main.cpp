@@ -1,23 +1,33 @@
-#include <winsock2.h> // Windows Socket API å¤´æ–‡ä»¶
-#include <ws2tcpip.h> // æä¾›å¯¹TCP/IPåè®®çš„æ”¯æŒ
-#include <stdio.h>    // æ ‡å‡†è¾“å…¥è¾“å‡ºåº“
-#include <stdlib.h>   // æ ‡å‡†åº“å‡½æ•°
+#include <winsock2.h> // Windows Socket API Í·ÎÄ¼ş
+#include <ws2tcpip.h> // Ìá¹©¶ÔTCP/IPĞ­ÒéµÄÖ§³Ö
+#include <stdio.h>    // ±ê×¼ÊäÈëÊä³ö¿â
+#include <stdlib.h>   // ±ê×¼¿âº¯Êı
 #include <iostream>
-#pragma comment(lib, "Ws2_32.lib") // é“¾æ¥Winsockåº“
-#define DEFAULT_PORT 8080
+#pragma comment(lib, "Ws2_32.lib") // Á´½ÓWinsock¿â
+#define DEFAULT_PORT 8888
 #define RECVBUF_SIZE 512
+/**
+ * socket ·¢ËÍÏûÏ¢
+ */
+void socketSendMsg(SOCKET clientSocket, const char *sendMessage)
+{
+    if (!send(clientSocket, sendMessage, strlen(sendMessage), 0))
+    {
+        std::cerr << "send failed: " << WSAGetLastError() << std::endl; // Êä³ö·¢ËÍÊ§°ÜµÄ´íÎóĞÅÏ¢
+    }
+}
 int main(int, char **)
 {
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    WSADATA wsaData;                               // ÓÃÓÚ´æ´¢socket³õÊ¼»¯ĞÅÏ¢
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) // ³õÊ¼»¯winsock
     {
-        printf("WSAStartup failed.\n");
+        std::cout<<"WSAStartup failed"<<std::endl;
         return 1;
     }
-    SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // ´´½¨TCP Socket
     if (listenSocket == INVALID_SOCKET)
     {
-        printf("socket failed with error:%d\n", WSAGetLastError());
+        std::cout<<"socket failed with error:"<<WSAGetLastError()<<std::endl;
         WSACleanup();
         return 1;
     }
@@ -27,8 +37,8 @@ int main(int, char **)
     serverAddr.sin_port = htons(DEFAULT_PORT);
     if (bind(listenSocket, (SOCKADDR *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
     {
-        // ç»‘å®šSocket
-        printf("bind failed with error:%d\n", WSAGetLastError());
+        // °ó¶¨Socket
+        std::cout<<"bind failed with error:"<<WSAGetLastError()<<std::endl;
         closesocket(listenSocket);
         WSACleanup();
         return 1;
@@ -36,41 +46,46 @@ int main(int, char **)
 
     if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
     {
-        printf("listen failed with error:%d\n", WSAGetLastError());
+        std::cout<<"listen failed with error:"<<WSAGetLastError()<<std::endl;
         closesocket(listenSocket);
         WSACleanup();
         return 1;
     }
 
-    WSAPOLLFD fds[1];           // å®šä¹‰pollfd æ•°ç»„
-    fds[0].fd = listenSocket;   // è®¾ç½®ç›‘å¬çš„Socket
-    fds[0].events = POLLRDNORM; // ç›‘å¬è¯»äº‹ä»¶
-    while (true)
+    WSAPOLLFD fds[1];           // ¶¨Òåpollfd Êı×é
+    fds[0].fd = listenSocket;   // ÉèÖÃ¼àÌıµÄSocket
+    fds[0].events = POLLRDNORM; // ¼àÌı¶ÁÊÂ¼ş
+    
+    while (true)                // Ö÷Ñ­»·
     {
-        int ret = WSAPoll(fds, 1, 1000);
-        if (ret == SOCKET_ERROR)
+        int ret = WSAPoll(fds, 1, 1000); // µ÷ÓÃWSAPoll£¬³¬Ê±Ê±¼äÎª1Ãë
+        if (ret == SOCKET_ERROR)         // ¼ì²éWSAPollÊÇ·ñÊ§°Ü
         {
-            printf("WSAPoll failed with error:%d\n", WSAGetLastError());
+            std::cout<<"WSAPoll failed with error:"<<WSAGetLastError()<<std::endl;
             break;
         }
-        if (ret > 0)
+        
+        if (ret > 0) // Èç¹ûÓĞÊÂ¼ş·¢Éú
         {
-            if (fds[0].revents & POLLRDBAND)
+            if (fds[0].revents & POLLRDNORM) // ¼ì²éÊÇ·ñÊÇ¶ÁÊÂ¼ş
             {
-                SOCKET clientSocket = accept(listenSocket, NULL, NULL);
-                if (clientSocket == INVALID_SOCKET)
+                SOCKET clientSocket = accept(listenSocket, NULL, NULL); // ½ÓÊÕ¿Í»§¶ËÁ¬½Ó
+                if (clientSocket == INVALID_SOCKET)                     // ¼ì²éÊÇ·ñ½ÓÊÕ³É¹¦
                 {
-                    printf("accept failed with error:%d\n", WSAGetLastError());
+                    std::cout<<"accept failed with error:"<<WSAGetLastError()<<std::endl;
                     continue;
                 }
-                printf("Client connected.\n");
-                // å¤„ç†å®¢æˆ·è¯·æ±‚
-                char recvBuf[RECVBUF_SIZE];
-                int recvBufLen = RECVBUF_SIZE;
-                int bytesReceived = recv(clientSocket, recvBuf, recvBufLen, 0); // æ¥æ”¶æ•°æ®
-                if (bytesReceived > 0)
+                std::cout<<"Client connected."<<WSAGetLastError()<<std::endl;
+
+                // ´¦Àí¿Í»§ÇëÇó
+                char recvBuf[RECVBUF_SIZE];                                     // ¶¨Òå½ÓÊÕ»º³åÇø
+                int recvBufLen = RECVBUF_SIZE;                                  // »º³åÇø³¤¶È
+                int bytesReceived = recv(clientSocket, recvBuf, recvBufLen, 0); // ½ÓÊÕÊı¾İ
+                const char *sendMsgStr = "·şÎñ¶Ë·¢ËÍµÄÏûÏ¢";
+                socketSendMsg(clientSocket, sendMsgStr);
+                if (bytesReceived > 0) // Èç¹û½ÓÊÕµ½Êı¾İ
                 {
-                    printf("Received:%s\n", recvBuf);
+                    std::cout<<"Received."<<std::string(recvBuf,0,bytesReceived)<<std::endl;
                 }
                 closesocket(clientSocket);
             }
